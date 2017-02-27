@@ -1,0 +1,5 @@
+#!/bin/bash
+
+. /home/alitke/src/ansible/hacking/env-setup
+
+python quarry/server.py -c quarry.conf
