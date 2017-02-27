@@ -120,6 +120,17 @@ class Driver(object):
         with RADOSClient(self) as client:
             return volume.name in self.rbd.RBD().list(client.ioctx)
 
+    def detect_snapshot(self, snapshot):
+        with RADOSClient(self) as client:
+            volumes = self.rbd.RBD().list(client.ioctx)
+            for volume in volumes:
+                try:
+                    self.rbd.Image(client.ioctx, volume, snapshot.name)
+                    return True
+                except rbd.ImageNotFound:
+                    pass
+            return False
+
     def _get_target_config(self, target_id):
         """Get a replication target from known replication targets."""
         for target in self._replication_targets:

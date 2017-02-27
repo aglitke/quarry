@@ -16,7 +16,7 @@
 
 DOCUMENTATION = '''
 ---
-module: quarry_volume
+module: quarry_snapshot
 author: "Adam Litke (@aglitke)"
 version_added: "2.0"
 short_description: Quarry Volume Provisioning
@@ -39,19 +39,17 @@ EXAMPLES = '''
 import logging
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils import quarry_common, quarry_rbd
-
+from ansible.module_utils import quarry_rbd
 
 BACKENDS = {'rbd': quarry_rbd.Driver}
 
 
-class Volume(object):
-    def __init__(self, id, size=None):
+class Snapshot(object):
+
+    def __init__(self, id, volume_id=None):
         self.id = id
-        self.name = 'volume-%s' % id
-        self.size = size
-        self.volume_type = None  # TODO: Implement
-        self.encryption_key_id = None
+        self.name = "snapshot-%s" % self.id
+        self.volume_id = volume_id
 
 
 def main():
@@ -62,7 +60,7 @@ def main():
             state=dict(required=False, choices=['present', 'absent'],
                        default='present'),
             id=dict(required=True, type='str'),
-            size=dict(required=False, type='int')),
+            volume_id=dict(required=False, type='str')),
         supports_check_mode=False)
     result = dict(changed=False)
 
@@ -70,22 +68,23 @@ def main():
     file = config.get('log', '/dev/null')
     logging.basicConfig(filename=file, level=logging.DEBUG)
 
-    volume = Volume(mod.params['id'], mod.params.get('size'))
-
+    snapshot = Snapshot(mod.params['id'], mod.params['volume_id'])
     backend_type = BACKENDS[mod.params['backend']]
     driver = backend_type(config)
     driver.do_setup(None)
-    present = driver.detect_volume(volume)
+
+    present = driver.detect_snapshot(snapshot)
     result['present'] = present
-    logging.debug("Volume %s %s present", volume.id,
+    logging.debug("Snapshot %s %s present", snapshot.id,
                   'is' if present else 'is not')
 
     state = mod.params['state']
     if not present and state == 'present':
-        driver.create_volume(volume)
-        result.update(dict(changed=True, id=volume.id, size=volume.size))
+        driver.create_snapshot(snapshot)
+        result.update(dict(changed=True, id=snapshot.id,
+                           volume_id=snapshot.volume_id))
     elif present and state == 'absent':
-        driver.delete_volume(volume)
+        driver.delete_volume(snapshot)
         result.update(dict(changed=True, id=None))
 
     mod.exit_json(**result)
