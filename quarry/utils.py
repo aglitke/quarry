@@ -41,13 +41,27 @@ def make_playbook(name, params):
         yield path
 
 
-def get_base_template_params():
+def validate_volume_type(volume_type):
+    types = cherrypy.request.app.config['volume_types'].keys()
+    if volume_type is None and len(types) == 1:
+        # Type can be omitted from requests when there is only one defined
+        return types[0]
+    if volume_type is not None and volume_type not in types:
+        raise cherrypy.HTTPError(400, "Unrecognized volume type: %s" %
+                                 volume_type)
+    return volume_type
+
+
+def get_base_template_params(volume_type):
+    volume_type = validate_volume_type(volume_type)
     params = {}
     params.update(cherrypy.request.app.config['ansible'])
+    params['backend'] = \
+        cherrypy.request.app.config['volume_types'][volume_type]
 
     # Convert backend section into a yaml dict
     config_str = ""
-    for k,v in cherrypy.request.app.config['backend'].items():
+    for k,v in cherrypy.request.app.config[volume_type].items():
         config_str += "      %s: %s\n" % (k,v)
     params['config'] = config_str
 
@@ -58,7 +72,7 @@ def run_playbook(host, playbook):
     cmd = ['ansible-playbook', '-i', '%s,' % host, playbook]
     env = copy.copy(os.environ)
     env['ANSIBLE_ROLES_PATH'] = config.roles_path
-    print cmd,  env['ANSIBLE_ROLES_PATH']
+    print (cmd, env['ANSIBLE_ROLES_PATH'])
     p = subprocess.Popen(cmd, shell=False, env=env,
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()

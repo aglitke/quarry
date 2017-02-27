@@ -19,24 +19,27 @@ class VolumeController(object):
         if cherrypy.request.method.upper() != 'POST':
             raise cherrypy.HTTPError(400, "Query volumes not supported")
 
-        params = utils.get_base_template_params()
-        volume_id = str(uuid.uuid4())
-        volume_size = int(cherrypy.request.json['volume']['size'])
-        params['volume_id'] = volume_id
-        params['volume_size'] = volume_size
+        params = dict(
+            volume_id=str(uuid.uuid4()),
+            volume_size=int(cherrypy.request.json['volume']['size']),
+            volume_type=cherrypy.request.json['volume'].get('volume_type'),
+        )
+        params.update(utils.get_base_template_params(params['volume_type']))
         utils.ansible_operation('create_volume', params)
         cherrypy.response.status = 202  # Accepted
         return json.dumps(dict(volume=dict(
             status="creating",
-            id=volume_id,
-            size=volume_size,
+            id=params['volume_id'],
+            size=params['volume_size'],
+            volume_type=params['volume_type'],
         )))
 
     def delete(self, api_ver, tenant_id, volume_id):
         if cherrypy.request.method.upper() != 'DELETE':
             raise cherrypy.HTTPError(400, "Query volume not supported")
 
-        params = utils.get_base_template_params()
+        # XXX: Until we can pass volume_type here we can only support one type
+        params = utils.get_base_template_params(None)
         params['volume_id'] = volume_id
         utils.ansible_operation('delete_volume', params)
         cherrypy.response.status = 202  # Accepted

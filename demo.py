@@ -69,9 +69,9 @@ def main():
     auth_token = keystone_auth()
     headers = {'Content-Type': 'application/json',
                'X-Auth-Token': auth_token}
-    #for url in CINDER_URL, QUARRY_URL:
-    #    print "Testing endpoint: %s" % url
-    #    test_volume_create_delete(url, headers)
+    for url in (QUARRY_URL,): #CINDER_URL, QUARRY_URL:
+        print "Testing endpoint: %s" % url
+        test_volume_create_delete(url, headers)
 
 
 if __name__ == '__main__':
