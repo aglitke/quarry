@@ -55,10 +55,20 @@ class LimitsController(object):
 class VolumeController(object):
 
     @cherrypy.tools.json_in()
-    def create(self, api_ver, tenant_id):
-        if cherrypy.request.method.upper() != 'POST':
-            raise cherrypy.HTTPError(400, "Query volumes not supported")
+    def collection(self, api_ver, tenant_id):
+        if cherrypy.request.method.upper() == 'POST':
+            return self._create_volume()
+        else:
+            raise cherrypy.HTTPError(400, "Method not supported")
 
+    @cherrypy.tools.json_in()
+    def resource(self, api_ver, tenant_id, volume_id):
+        if cherrypy.request.method.upper() == 'DELETE':
+            return self._delete_volume(volume_id)
+        else:
+            raise cherrypy.HTTPError(400, "Method not supported")
+
+    def _create_volume(self):
         params = dict(
             volume_id=str(uuid.uuid4()),
             volume_size=int(cherrypy.request.json['volume']['size']),
@@ -75,21 +85,12 @@ class VolumeController(object):
             volume_type=volume_type,
         )))
 
-    def delete(self, api_ver, tenant_id, volume_id):
-        if cherrypy.request.method.upper() != 'DELETE':
-            raise cherrypy.HTTPError(400, "Query volume not supported")
-
+    def _delete_volume(self, volume_id):
         # XXX: Until we can pass volume_type here we can only support one type
         params = utils.get_base_template_params(None)
         params['volume_id'] = volume_id
         utils.ansible_operation('delete_volume', params)
         cherrypy.response.status = 202  # Accepted
-
-    @cherrypy.tools.json_in()
-    def action(self, api_ver, tenant_id, volume_id):
-        if cherrypy.request.method.upper() != 'POST':
-            raise cherrypy.HTTPError(400)
-        return "Hi %s %s %s" % (api_ver, tenant_id, volume_id)
 
 
 class SnapshotController(object):
@@ -132,12 +133,10 @@ def setup_routes():
               controller=VolumeTypesController(), action='index')
     d.connect('limits', '/:api_ver/:tenant_id/limits',
               controller=LimitsController(), action='index')
-    d.connect('create_volume', '/:api_ver/:tenant_id/volumes',
-              controller=VolumeController(), action='create')
-    d.connect('delete_volume', '/:api_ver/:tenant_id/volumes/:volume_id',
-              controller=VolumeController(), action='delete')
-    d.connect('volume_action', '/:api_ver/:tenant_id/volumes/:volume_id/action',
-              controller=VolumeController(), action='action')
+    d.connect('volume_collection', '/:api_ver/:tenant_id/volumes',
+              controller=VolumeController(), action='collection')
+    d.connect('volume_resource', '/:api_ver/:tenant_id/volumes/:volume_id',
+              controller=VolumeController(), action='resource')
     d.connect('create_snapshot', '/:api_ver/:tenant_id/snapshots',
               controller=SnapshotController(), action='create')
     d.connect('delete_snapshot', '/:api_ver/:tenant_id/snapshots/:snapshot_id',
