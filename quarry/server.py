@@ -10,6 +10,46 @@ class V2Controller(object):
 
     def index(self):
         return json.dumps({})
+        # return json.dumps({"versions": [{"status": "SUPPORTED", "updated": "2014-06-28T12:20:21Z", "links": [{"href": "http://docs.openstack.org/", "type": "text/html", "rel": "describedby"}, {"href": "http://192.168.2.16:8776/v2/", "rel": "self"}], "min_version": "", "version": "", "media-types": [{"base": "application/json", "type": "application/vnd.openstack.volume+json;version=1"}], "id": "v2.0"}]})
+
+
+class VolumeTypesController(object):
+
+    def index(self, api_ver, tenant_id):
+        types = cherrypy.request.app.config['volume_types'].keys()
+        result = dict(volume_types=[])
+        for i, vol_type in enumerate(types, start=1):
+            entry = dict(
+                id="00000000-0000-0000-0000-%012d" % i,
+                name=vol_type,
+                extra_specs=dict(volume_backend_name=vol_type)
+            )
+            result['volume_types'].append(entry)
+        cherrypy.response.headers['Content-type'] = 'application/json'
+        return json.dumps(result)
+
+
+class LimitsController(object):
+
+    def index(self, api_ver, tenant_id):
+        cherrypy.response.headers['Content-type'] = 'application/json'
+        return json.dumps({
+            "limits": {
+                "rate": [],
+                "absolute": {
+                    "totalSnapshotsUsed": 0,
+                    "maxTotalBackups": 10,
+                    "maxTotalVolumeGigabytes": 1000,
+                    "maxTotalSnapshots": 10,
+                    "maxTotalBackupGigabytes": 1000,
+                    "totalBackupGigabytesUsed": 0,
+                    "maxTotalVolumes": 10,
+                    "totalVolumesUsed": 0,
+                    "totalBackupsUsed": 0,
+                    "totalGigabytesUsed": 0
+                }
+            }
+        })
 
 
 class VolumeController(object):
@@ -22,16 +62,17 @@ class VolumeController(object):
         params = dict(
             volume_id=str(uuid.uuid4()),
             volume_size=int(cherrypy.request.json['volume']['size']),
-            volume_type=cherrypy.request.json['volume'].get('volume_type'),
         )
-        params.update(utils.get_base_template_params(params['volume_type']))
+        volume_type = cherrypy.request.json['volume'].get('volume_type')
+        params.update(utils.get_base_template_params(volume_type))
+
         utils.ansible_operation('create_volume', params)
         cherrypy.response.status = 202  # Accepted
         return json.dumps(dict(volume=dict(
             status="creating",
             id=params['volume_id'],
             size=params['volume_size'],
-            volume_type=params['volume_type'],
+            volume_type=volume_type,
         )))
 
     def delete(self, api_ver, tenant_id, volume_id):
@@ -87,6 +128,10 @@ dispatcher = None
 def setup_routes():
     d = cherrypy.dispatch.RoutesDispatcher()
     d.connect('api', '/v2/', controller=V2Controller(), action='index')
+    d.connect('volume_types', '/:api_ver/:tenant_id/types',
+              controller=VolumeTypesController(), action='index')
+    d.connect('limits', '/:api_ver/:tenant_id/limits',
+              controller=LimitsController(), action='index')
     d.connect('create_volume', '/:api_ver/:tenant_id/volumes',
               controller=VolumeController(), action='create')
     d.connect('delete_volume', '/:api_ver/:tenant_id/volumes/:volume_id',
