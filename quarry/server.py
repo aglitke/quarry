@@ -9,6 +9,7 @@ import utils
 class V2Controller(object):
 
     def index(self):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps({})
         # return json.dumps({"versions": [{"status": "SUPPORTED", "updated": "2014-06-28T12:20:21Z", "links": [{"href": "http://docs.openstack.org/", "type": "text/html", "rel": "describedby"}, {"href": "http://192.168.2.16:8776/v2/", "rel": "self"}], "min_version": "", "version": "", "media-types": [{"base": "application/json", "type": "application/vnd.openstack.volume+json;version=1"}], "id": "v2.0"}]})
 
@@ -32,7 +33,7 @@ class VolumeTypesController(object):
 class LimitsController(object):
 
     def index(self, api_ver, tenant_id):
-        cherrypy.response.headers['Content-type'] = 'application/json'
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps({
             "limits": {
                 "rate": [],
@@ -65,8 +66,42 @@ class VolumeController(object):
     def resource(self, api_ver, tenant_id, volume_id):
         if cherrypy.request.method.upper() == 'DELETE':
             return self._delete_volume(volume_id)
+        elif cherrypy.request.method.upper() == 'GET':
+            return self._get_volume(volume_id)
         else:
             raise cherrypy.HTTPError(400, "Method not supported")
+
+    def _get_volume(self, volume_id):
+        # XXX: This is a hack to support ovirt-engine.
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        params = dict(
+            volume_id=volume_id,
+            volume_size=0,
+            check_mode='yes',
+        )
+        params.update(utils.get_base_template_params(None))
+        ret = utils.ansible_operation('create_volume', params)
+        # XXX: We need a better way to do this...
+        state = utils.search_playbook_output(ret, "state")
+        if state == 'present':
+            return json.dumps(dict(volume=dict(
+                status="available",
+                attachments=[],
+                links=[],
+                availability_zone="nova",
+                bootable=True,
+                description="",
+                name="volume-%s" % volume_id,
+                volume_type=cherrypy.request.app.config['volume_types'].keys()[0],
+                id=volume_id,
+                size=0,
+                metadata={},
+            )))
+        elif state == 'absent':
+            raise cherrypy.HTTPError(404, "Volume not found")
+        else:
+            print "Invalid state: %s" % state
+            raise cherrypy.HTTPError(500)
 
     def _create_volume(self):
         params = dict(
@@ -78,6 +113,7 @@ class VolumeController(object):
 
         utils.ansible_operation('create_volume', params)
         cherrypy.response.status = 202  # Accepted
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps(dict(volume=dict(
             status="creating",
             id=params['volume_id'],
@@ -165,4 +201,4 @@ def start():
 
 if __name__ == '__main__':
     start()
-    # start(os.path.join(os.path.dirname(__file__), 'quarry.conf'))
+

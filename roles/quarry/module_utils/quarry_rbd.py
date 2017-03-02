@@ -116,6 +116,16 @@ class Driver(object):
         self._replication_targets = []
         self._target_names = []
 
+    #
+    # New Quarry methods
+    #
+    def get_volume(self, volume):
+        try:
+            with RBDVolumeProxy(self, volume.name, read_only=True) as proxy:
+                return dict(name=proxy.name, size=proxy.size())
+        except rbd.ImageNotFound:
+            return None
+
     def detect_volume(self, volume):
         with RADOSClient(self) as client:
             return volume.name in self.rbd.RBD().list(client.ioctx)
@@ -130,6 +140,9 @@ class Driver(object):
                 except rbd.ImageNotFound:
                     pass
             return False
+    #
+    # New Quarry methods
+    #
 
     def _get_target_config(self, target_id):
         """Get a replication target from known replication targets."""

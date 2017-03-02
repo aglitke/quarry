@@ -16,3 +16,4 @@ $config
       state: present
       id: $volume_id
       size: $volume_size
+    check_mode: $getVar('check_mode', 'no')

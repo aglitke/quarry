@@ -55,7 +55,11 @@ def test_volume_create_delete(url, headers):
         raise Exception("Volume create failed: %s" % r.text)
 
     volume_id = r.json()['volume']['id']
-    raw_input("Volume %s created. (Press enter)" % volume_id)
+    get_url = "%s/volumes/%s" % (url, volume_id)
+    r = requests.get(get_url, headers=headers)
+    if r.status_code == 200:
+        raw_input("Volume %s created. (Press enter)" %
+                  r.json()['volume']['id'])
 
     print "Deleting volume..."
     delete_url = "%s/volumes/%s" % (url, volume_id)

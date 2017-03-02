@@ -63,30 +63,34 @@ def main():
                        default='present'),
             id=dict(required=True, type='str'),
             size=dict(required=False, type='int')),
-        supports_check_mode=False)
-    result = dict(changed=False)
+        supports_check_mode=True)
 
     config = mod.params['config']
     file = config.get('log', '/dev/null')
     logging.basicConfig(filename=file, level=logging.DEBUG)
 
     volume = Volume(mod.params['id'], mod.params.get('size'))
+    result = dict(changed=False, id=volume.id)
 
     backend_type = BACKENDS[mod.params['backend']]
     driver = backend_type(config)
     driver.do_setup(None)
-    present = driver.detect_volume(volume)
-    result['present'] = present
-    logging.debug("Volume %s %s present", volume.id,
-                  'is' if present else 'is not')
+    info = driver.get_volume(volume)
+    state = result['state'] = 'present' if info is not None else 'absent'
+    if mod.check_mode:
+        if info:
+            result['size'] = info['size']
+        mod.exit_json(**result)
 
-    state = mod.params['state']
-    if not present and state == 'present':
+    logging.debug("Volume %s is %s", volume.id, state)
+
+    target_state = mod.params['state']
+    if state == 'absent' and target_state == 'present':
         driver.create_volume(volume)
-        result.update(dict(changed=True, id=volume.id, size=volume.size))
-    elif present and state == 'absent':
+        result.update(dict(changed=True, size=volume.size, state='present'))
+    elif state == 'present' and target_state == 'absent':
         driver.delete_volume(volume)
-        result.update(dict(changed=True, id=None))
+        result.update(dict(changed=True, state='absent'))
 
     mod.exit_json(**result)
 

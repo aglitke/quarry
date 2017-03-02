@@ -2,11 +2,18 @@ from Cheetah.Template import Template
 import cherrypy
 from contextlib import contextmanager
 import copy
+import json
 import os
+import re
 import subprocess
 import tempfile
 
 import config
+
+
+KB = 1024
+MB = KB * 1024
+GB = MB * 1024
 
 
 class AnsibleError(Exception):
@@ -69,7 +76,7 @@ def get_base_template_params(volume_type):
 
 
 def run_playbook(host, playbook):
-    cmd = ['ansible-playbook', '-i', '%s,' % host, playbook]
+    cmd = ['ansible-playbook', '-v', '-i', '%s,' % host, playbook]
     env = copy.copy(os.environ)
     env['ANSIBLE_ROLES_PATH'] = config.roles_path
     print (cmd, env['ANSIBLE_ROLES_PATH'])
@@ -79,12 +86,22 @@ def run_playbook(host, playbook):
     rc = p.returncode
     if rc != 0:
         raise AnsibleError(rc, out, err)
+    print out
+    return out
 
 
 def ansible_operation(op, params):
     with make_playbook(op, params) as playbook:
         host = cherrypy.request.app.config['ansible']['ansible_host']
         try:
-            run_playbook(host, playbook)
+            return run_playbook(host, playbook)
         except AnsibleError as e:
             raise cherrypy.HTTPError(500, str(e))
+
+
+def search_playbook_output(output, key):
+    host = cherrypy.request.app.config['ansible']['ansible_host']
+    pattern = "^ok: \[%s\] => (\{.*\})$" % host
+    match = re.search(pattern, output, flags=re.M)
+    if match:
+        return json.loads(match.group(1))[key]
