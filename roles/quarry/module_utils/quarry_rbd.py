@@ -122,24 +122,21 @@ class Driver(object):
     def get_volume(self, volume):
         try:
             with RBDVolumeProxy(self, volume.name, read_only=True) as proxy:
-                return dict(name=proxy.name, size=proxy.size())
+                return quarry_common.Volume(volume.id, size=proxy.size())
         except rbd.ImageNotFound:
             return None
 
-    def detect_volume(self, volume):
-        with RADOSClient(self) as client:
-            return volume.name in self.rbd.RBD().list(client.ioctx)
-
-    def detect_snapshot(self, snapshot):
+    def get_snapshot(self, snapshot):
         with RADOSClient(self) as client:
             volumes = self.rbd.RBD().list(client.ioctx)
             for volume in volumes:
                 try:
                     self.rbd.Image(client.ioctx, volume, snapshot.name)
-                    return True
+                    return quarry_common.Snapshot(snapshot.id,
+                                                  volume_name=volume)
                 except rbd.ImageNotFound:
                     pass
-            return False
+            return None
     #
     # New Quarry methods
     #
@@ -806,6 +803,8 @@ class Driver(object):
 
                 raise quarry_common.SnapshotIsBusy(snap_name)
             try:
+                logging.info("Removing snapshot %s of volume %s",
+                             snap_name, volume_name)
                 volume.remove_snap(snap_name)
             except self.rbd.ImageNotFound:
                 logging.info("Snapshot %s does not exist in backend.",

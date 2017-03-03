@@ -27,6 +27,28 @@ MB = KB * 1024
 GB = MB * 1024
 
 
+class Volume(object):
+    def __init__(self, id, size=None):
+        self.id = id
+        self.name = 'volume-%s' % id
+        self.size = size
+        self.volume_type = None  # TODO: Implement
+        self.encryption_key_id = None
+
+
+class Snapshot(object):
+
+    def __init__(self, id, volume_id=None, volume_name=None):
+        self.id = id
+        self.name = "snapshot-%s" % self.id
+        if volume_id is not None:
+            self.volume_id = volume_id
+            self.volume_name = 'volume-%s' % volume_id
+        elif volume_name is not None:
+            self.volume_name = volume_name
+            self.volume_id = volume_name.split('volume-')[1]
+
+
 class ImageUnacceptable(Exception):
     pass
 

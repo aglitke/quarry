@@ -16,4 +16,4 @@ $config
       state: present
       id: $snapshot_id
       volume_id: $volume_id
-      check_mode: $getVar('check', 0)
+    check_mode: $getVar('check_mode', 'no')

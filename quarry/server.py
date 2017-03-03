@@ -71,15 +71,22 @@ class VolumeController(object):
         else:
             raise cherrypy.HTTPError(400, "Method not supported")
 
+    @cherrypy.tools.json_in()
+    def action(self, api_ver, tenant_id, volume_id):
+        if cherrypy.request.method.upper() != 'POST':
+            raise cherrypy.HTTPError(400, "POST method expected")
+        print cherrypy.request.json
+        raise cherrypy.HTTPError(500, "Not implemented")
+
     def _get_volume(self, volume_id):
         # XXX: This is a hack to support ovirt-engine.
         cherrypy.response.headers['Content-Type'] = 'application/json'
-        params = dict(
+        params = utils.get_base_template_params(get_volume_type(volume_id))
+        params.update(dict(
             volume_id=volume_id,
             volume_size=0,
             check_mode='yes',
-        )
-        params.update(utils.get_base_template_params(None))
+        ))
         ret = utils.ansible_operation('create_volume', params)
         # XXX: We need a better way to do this...
         state = utils.search_playbook_output(ret, "state")
@@ -100,30 +107,29 @@ class VolumeController(object):
         elif state == 'absent':
             raise cherrypy.HTTPError(404, "Volume not found")
         else:
-            print "Invalid state: %s" % state
-            raise cherrypy.HTTPError(500)
+            raise cherrypy.HTTPError(500, "Invalid state: %s" % state)
 
     def _create_volume(self):
-        params = dict(
-            volume_id=str(uuid.uuid4()),
-            volume_size=int(cherrypy.request.json['volume']['size']),
-        )
+        volume_id = str(uuid.uuid4())
         volume_type = cherrypy.request.json['volume'].get('volume_type')
-        params.update(utils.get_base_template_params(volume_type))
+        params = utils.get_base_template_params(volume_type)
+        params.update(dict(
+            volume_id=volume_id,
+            volume_size=int(cherrypy.request.json['volume']['size']),
+        ))
 
         utils.ansible_operation('create_volume', params)
         cherrypy.response.status = 202  # Accepted
         cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps(dict(volume=dict(
             status="creating",
-            id=params['volume_id'],
+            id=volume_id,
             size=params['volume_size'],
             volume_type=volume_type,
         )))
 
     def _delete_volume(self, volume_id):
-        # XXX: Until we can pass volume_type here we can only support one type
-        params = utils.get_base_template_params(None)
+        params = utils.get_base_template_params(get_volume_type(volume_id))
         params['volume_id'] = volume_id
         utils.ansible_operation('delete_volume', params)
         cherrypy.response.status = 202  # Accepted
@@ -132,31 +138,77 @@ class VolumeController(object):
 class SnapshotController(object):
 
     @cherrypy.tools.json_in()
-    def create(self, api_ver, tenant_id):
-        if cherrypy.request.method.upper() != 'POST':
-            raise cherrypy.HTTPError(400, "Query snapshots not supported")
+    def collection(self, api_ver, tenant_id):
+        if cherrypy.request.method.upper() == 'POST':
+            return self._create_snapshot()
+        else:
+            raise cherrypy.HTTPError(400, "Method not supported")
 
-        params = utils.get_base_template_params()
+    @cherrypy.tools.json_in()
+    def resource(self, api_ver, tenant_id, snapshot_id):
+        if cherrypy.request.method.upper() == 'DELETE':
+            return self._delete_snapshot(snapshot_id)
+        elif cherrypy.request.method.upper() == 'GET':
+            return self._get_snapshot(snapshot_id)
+        else:
+            raise cherrypy.HTTPError(400, "Method not supported")
+
+    def _get_snapshot(self, snapshot_id):
+        # XXX: How can we look up the backend type?
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        params = utils.get_base_template_params(get_volume_type(None))
+        params.update(dict(
+            snapshot_id=snapshot_id,
+            volume_id=None,  # Will be looked up
+            check_mode='yes',
+        ))
+
+        ret = utils.ansible_operation('create_snapshot', params)
+        # XXX: We need a better way to do this...
+        state = utils.search_playbook_output(ret, "state")
+        volume_id = utils.search_playbook_output(ret, "volume_id")
+        if state == 'present':
+            return json.dumps(dict(snapshot=dict(
+                status="available",
+                id=snapshot_id,
+                volume_id=volume_id,
+            )))
+        elif state == 'absent':
+            raise cherrypy.HTTPError(404, "Snapshot not found")
+        else:
+            raise cherrypy.HTTPError(500, "Invalid state: %s" % state)
+
+    def _create_snapshot(self):
         snapshot_id = str(uuid.uuid4())
         volume_id = cherrypy.request.json['snapshot']['volume_id']
-        params['snapshot_id'] = snapshot_id
-        params['volume_id'] = volume_id
+        params = utils.get_base_template_params(get_volume_type(volume_id))
+        params.update(dict(
+            volume_id=volume_id,
+            snapshot_id=snapshot_id
+        ))
+
         utils.ansible_operation('create_snapshot', params)
         cherrypy.response.status = 202  # Accepted
-        return json.dumps(dict(volume=dict(
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        return json.dumps(dict(snapshot=dict(
             status="creating",
             id=snapshot_id,
-            size=volume_id,
+            volume_id=volume_id,
         )))
 
-    def delete(self, api_ver, tenant_id, snapshot_id):
-        if cherrypy.request.method.upper() != 'DELETE':
-            raise cherrypy.HTTPError(400, "Query snapshot not supported")
-
-        params = utils.get_base_template_params()
-        params['volume_id'] = snapshot_id
+    def _delete_snapshot(self, snapshot_id):
+        # XXX: How can we look up the backend type?
+        params = utils.get_base_template_params(get_volume_type(None))
+        params['snapshot_id'] = snapshot_id
         utils.ansible_operation('delete_snapshot', params)
         cherrypy.response.status = 202  # Accepted
+
+
+def get_volume_type(volume_id):
+    types = cherrypy.request.app.config['volume_types'].keys()
+    if len(types) != 1:
+        raise cherrypy.HTTPError(500, "Exactly one backend may be configured")
+    return types[0]
 
 
 dispatcher = None
@@ -173,10 +225,12 @@ def setup_routes():
               controller=VolumeController(), action='collection')
     d.connect('volume_resource', '/:api_ver/:tenant_id/volumes/:volume_id',
               controller=VolumeController(), action='resource')
-    d.connect('create_snapshot', '/:api_ver/:tenant_id/snapshots',
-              controller=SnapshotController(), action='create')
-    d.connect('delete_snapshot', '/:api_ver/:tenant_id/snapshots/:snapshot_id',
-              controller=SnapshotController(), action='delete')
+    d.connect('volume_action', '/:api_ver/:tenant_id/volumes/:volume_id/action',
+              controller=VolumeController(), action='action')
+    d.connect('snap_collection', '/:api_ver/:tenant_id/snapshots',
+              controller=SnapshotController(), action='collection')
+    d.connect('snap_resource', '/:api_ver/:tenant_id/snapshots/:snapshot_id',
+              controller=SnapshotController(), action='resource')
     dispatcher = d
     return dispatcher
 

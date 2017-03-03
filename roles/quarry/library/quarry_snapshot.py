@@ -39,17 +39,9 @@ EXAMPLES = '''
 import logging
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils import quarry_rbd
+from ansible.module_utils import quarry_common, quarry_rbd
 
 BACKENDS = {'rbd': quarry_rbd.Driver}
-
-
-class Snapshot(object):
-
-    def __init__(self, id, volume_id=None):
-        self.id = id
-        self.name = "snapshot-%s" % self.id
-        self.volume_id = volume_id
 
 
 def main():
@@ -61,31 +53,38 @@ def main():
                        default='present'),
             id=dict(required=True, type='str'),
             volume_id=dict(required=False, type='str')),
-        supports_check_mode=False)
-    result = dict(changed=False)
+        supports_check_mode=True)
 
     config = mod.params['config']
     file = config.get('log', '/dev/null')
     logging.basicConfig(filename=file, level=logging.DEBUG)
 
-    snapshot = Snapshot(mod.params['id'], mod.params['volume_id'])
+    snapshot = quarry_common.Snapshot(mod.params['id'],
+                                      volume_id=mod.params['volume_id'])
+    result = dict(changed=False, id=snapshot.id)
     backend_type = BACKENDS[mod.params['backend']]
     driver = backend_type(config)
     driver.do_setup(None)
 
-    present = driver.detect_snapshot(snapshot)
-    result['present'] = present
-    logging.debug("Snapshot %s %s present", snapshot.id,
-                  'is' if present else 'is not')
+    # The driver will look up the associated volume
+    found_snapshot = driver.get_snapshot(snapshot)
+    state = result['state'] = 'present' if found_snapshot else 'absent'
+    logging.debug("Snapshot %s is %s", snapshot.id, state)
+    if mod.check_mode:
+        if found_snapshot:
+            result['volume_id'] = found_snapshot.volume_id
+        mod.exit_json(**result)
 
-    state = mod.params['state']
-    if not present and state == 'present':
+    target_state = mod.params['state']
+    if state == 'absent' and target_state == 'present':
         driver.create_snapshot(snapshot)
         result.update(dict(changed=True, id=snapshot.id,
-                           volume_id=snapshot.volume_id))
-    elif present and state == 'absent':
-        driver.delete_volume(snapshot)
-        result.update(dict(changed=True, id=None))
+                           volume_id=snapshot.volume_id,
+                           state='present'))
+    elif state == 'present' and target_state == 'absent':
+        # We use found_snapshot because the driver needs the volume_id
+        driver.delete_snapshot(found_snapshot)
+        result.update(dict(changed=True, state='absent'))
 
     mod.exit_json(**result)
 

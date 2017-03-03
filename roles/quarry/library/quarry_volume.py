@@ -45,15 +45,6 @@ from ansible.module_utils import quarry_common, quarry_rbd
 BACKENDS = {'rbd': quarry_rbd.Driver}
 
 
-class Volume(object):
-    def __init__(self, id, size=None):
-        self.id = id
-        self.name = 'volume-%s' % id
-        self.size = size
-        self.volume_type = None  # TODO: Implement
-        self.encryption_key_id = None
-
-
 def main():
     mod = AnsibleModule(
         argument_spec=dict(
@@ -69,17 +60,17 @@ def main():
     file = config.get('log', '/dev/null')
     logging.basicConfig(filename=file, level=logging.DEBUG)
 
-    volume = Volume(mod.params['id'], mod.params.get('size'))
+    volume = quarry_common.Volume(mod.params['id'], mod.params.get('size'))
     result = dict(changed=False, id=volume.id)
 
     backend_type = BACKENDS[mod.params['backend']]
     driver = backend_type(config)
     driver.do_setup(None)
-    info = driver.get_volume(volume)
-    state = result['state'] = 'present' if info is not None else 'absent'
+    found_volume = driver.get_volume(volume)
+    state = result['state'] = 'present' if found_volume else 'absent'
     if mod.check_mode:
-        if info:
-            result['size'] = info['size']
+        if found_volume:
+            result['size'] = found_volume.size
         mod.exit_json(**result)
 
     logging.debug("Volume %s is %s", volume.id, state)
