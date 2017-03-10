@@ -25,6 +25,7 @@ import rados
 import rbd
 import six
 from six.moves import urllib
+import subprocess
 import tempfile
 
 from ansible.module_utils import quarry_common
@@ -290,7 +291,8 @@ class Driver(object):
     def _get_mon_addrs(self):
         args = ['ceph', 'mon', 'dump', '--format=json']
         args.extend(self._ceph_args())
-        out, _ = self._execute(*args)
+        #out, _ = self._execute(*args)
+        out = subprocess.check_output(args)
         lines = out.split('\n')
         if lines[0].startswith('dumped monmap epoch'):
             lines = lines[1:]

@@ -61,6 +61,23 @@ def test_volume_create_delete(url, headers):
         raw_input("Volume %s created. (Press enter)" %
                   r.json()['volume']['id'])
 
+    print "Connecting volume"
+    action_url = "%s/volumes/%s/action" % (url, volume_id)
+    payload = json.dumps({'os-initialize_connection': dict(
+        connector=dict()
+    )})
+    r = requests.post(action_url, headers=headers, data=payload)
+    print r.text
+    raw_input("done. (Press enter)")
+
+    print "Disconnecting volume"
+    payload = json.dumps({'os-terminate_connection': dict(
+        connector=dict()
+    )})
+    r = requests.post(action_url, headers=headers, data=payload)
+    print r.text
+    raw_input("done. (Press enter)")
+
     print "Deleting volume..."
     delete_url = "%s/volumes/%s" % (url, volume_id)
     r = requests.delete(delete_url, headers=headers)
@@ -114,11 +131,11 @@ def main():
     headers = {'Content-Type': 'application/json',
                'X-Auth-Token': auth_token}
     #for url in (QUARRY_URL,): #CINDER_URL, QUARRY_URL:
-    #for url in (CINDER_URL,):
-    for url in (QUARRY_URL,):
+    for url in (CINDER_URL,):
+    #for url in (QUARRY_URL,):
         print "Testing endpoint: %s" % url
-        #test_volume_create_delete(url, headers)
-        test_volume_snapshot(url, headers)
+        test_volume_create_delete(url, headers)
+        #test_volume_snapshot(url, headers)
 
 
 if __name__ == '__main__':

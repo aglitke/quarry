@@ -75,8 +75,13 @@ class VolumeController(object):
     def action(self, api_ver, tenant_id, volume_id):
         if cherrypy.request.method.upper() != 'POST':
             raise cherrypy.HTTPError(400, "POST method expected")
-        print cherrypy.request.json
-        raise cherrypy.HTTPError(500, "Not implemented")
+        req = cherrypy.request.json
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        if 'os-initialize_connection' in req:
+            connector = req['os-initialize_connection']['connector']
+            return self._initialize_connection(volume_id, connector)
+        print req
+        raise cherrypy.HTTPError(400, "Action Not implemented")
 
     def _get_volume(self, volume_id):
         # XXX: This is a hack to support ovirt-engine.
@@ -88,8 +93,7 @@ class VolumeController(object):
             check_mode='yes',
         ))
         ret = utils.ansible_operation('create_volume', params)
-        # XXX: We need a better way to do this...
-        state = utils.search_playbook_output(ret, "state")
+        state = ret["state"]
         if state == 'present':
             return json.dumps(dict(volume=dict(
                 status="available",
@@ -134,6 +138,13 @@ class VolumeController(object):
         utils.ansible_operation('delete_volume', params)
         cherrypy.response.status = 202  # Accepted
 
+    def _initialize_connection(self, volume_id, connector):
+        params = utils.get_base_template_params(get_volume_type(volume_id))
+        params['volume_id'] = volume_id
+        ret = utils.ansible_operation('initialize_connection', params)
+        info = ret['connection_info']
+        return json.dumps(dict(connection_info=info))
+
 
 class SnapshotController(object):
 
@@ -165,9 +176,9 @@ class SnapshotController(object):
 
         ret = utils.ansible_operation('create_snapshot', params)
         # XXX: We need a better way to do this...
-        state = utils.search_playbook_output(ret, "state")
-        volume_id = utils.search_playbook_output(ret, "volume_id")
+        state = ret["state"]
         if state == 'present':
+            volume_id = utils.search_playbook_output(ret, "volume_id")
             return json.dumps(dict(snapshot=dict(
                 status="available",
                 id=snapshot_id,

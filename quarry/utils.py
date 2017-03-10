@@ -72,9 +72,10 @@ def get_base_template_params(volume_type):
 
 
 def run_playbook(host, playbook):
-    cmd = ['ansible-playbook', '-vv', '-i', '%s,' % host, playbook]
+    cmd = ['ansible-playbook', '-i', '%s,' % host, playbook]
     env = copy.copy(os.environ)
     env['ANSIBLE_ROLES_PATH'] = config.roles_path
+    env['ANSIBLE_STDOUT_CALLBACK'] = 'json'
     print (cmd, env['ANSIBLE_ROLES_PATH'])
     p = subprocess.Popen(cmd, shell=False, env=env,
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -83,7 +84,7 @@ def run_playbook(host, playbook):
     if rc != 0:
         raise AnsibleError(rc, out, err)
     print out
-    return out
+    return json.loads(out)['plays'][0]['tasks'][-1]['hosts'][host]
 
 
 def ansible_operation(op, params):
@@ -93,11 +94,3 @@ def ansible_operation(op, params):
             return run_playbook(host, playbook)
         except AnsibleError as e:
             raise cherrypy.HTTPError(500, str(e))
-
-
-def search_playbook_output(output, key):
-    host = cherrypy.request.app.config['ansible']['ansible_host']
-    pattern = "^ok: \[%s\] => (\{.*\})$" % host
-    match = re.search(pattern, output, flags=re.M)
-    if match:
-        return json.loads(match.group(1))[key]
