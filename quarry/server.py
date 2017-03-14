@@ -1,20 +1,25 @@
 import argparse
 import cherrypy
 import json
+import logging
 import uuid
 
+import playcaller
 import utils
 
 
-class V2Controller(object):
+class QuarryController(object):
+    def __init__(self):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+
+
+class V2Controller(QuarryController):
 
     def index(self):
-        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps({})
-        # return json.dumps({"versions": [{"status": "SUPPORTED", "updated": "2014-06-28T12:20:21Z", "links": [{"href": "http://docs.openstack.org/", "type": "text/html", "rel": "describedby"}, {"href": "http://192.168.2.16:8776/v2/", "rel": "self"}], "min_version": "", "version": "", "media-types": [{"base": "application/json", "type": "application/vnd.openstack.volume+json;version=1"}], "id": "v2.0"}]})
 
 
-class VolumeTypesController(object):
+class VolumeTypesController(QuarryController):
 
     def index(self, api_ver, tenant_id):
         types = cherrypy.request.app.config['volume_types'].keys()
@@ -26,14 +31,12 @@ class VolumeTypesController(object):
                 extra_specs=dict(volume_backend_name=vol_type)
             )
             result['volume_types'].append(entry)
-        cherrypy.response.headers['Content-type'] = 'application/json'
         return json.dumps(result)
 
 
-class LimitsController(object):
+class LimitsController(QuarryController):
 
     def index(self, api_ver, tenant_id):
-        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps({
             "limits": {
                 "rate": [],
@@ -53,7 +56,7 @@ class LimitsController(object):
         })
 
 
-class VolumeController(object):
+class VolumeController(QuarryController):
 
     @cherrypy.tools.json_in()
     def collection(self, api_ver, tenant_id):
@@ -76,23 +79,19 @@ class VolumeController(object):
         if cherrypy.request.method.upper() != 'POST':
             raise cherrypy.HTTPError(400, "POST method expected")
         req = cherrypy.request.json
-        cherrypy.response.headers['Content-Type'] = 'application/json'
         if 'os-initialize_connection' in req:
             connector = req['os-initialize_connection']['connector']
             return self._initialize_connection(volume_id, connector)
-        print req
         raise cherrypy.HTTPError(400, "Action Not implemented")
 
     def _get_volume(self, volume_id):
-        # XXX: This is a hack to support ovirt-engine.
-        cherrypy.response.headers['Content-Type'] = 'application/json'
-        params = utils.get_base_template_params(get_volume_type(volume_id))
+        backend, params = get_backend_params(get_volume_type(volume_id))
         params.update(dict(
             volume_id=volume_id,
             volume_size=0,
-            check_mode='yes',
         ))
-        ret = utils.ansible_operation('create_volume', params)
+
+        ret = playcaller.factory(backend, 'get_volume', params).run()
         state = ret["state"]
         if state == 'present':
             return json.dumps(dict(volume=dict(
@@ -115,16 +114,16 @@ class VolumeController(object):
 
     def _create_volume(self):
         volume_id = str(uuid.uuid4())
-        volume_type = cherrypy.request.json['volume'].get('volume_type')
-        params = utils.get_base_template_params(volume_type)
+        volume_type = cherrypy.request.json['volume']['volume_type']
+        volume_size = cherrypy.request.json['volume']['size']
+        backend, params = get_backend_params(volume_type)
         params.update(dict(
             volume_id=volume_id,
-            volume_size=int(cherrypy.request.json['volume']['size']),
+            volume_size=volume_size,
         ))
 
-        utils.ansible_operation('create_volume', params)
+        playcaller.factory(backend, 'create_volume', params).run()
         cherrypy.response.status = 202  # Accepted
-        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps(dict(volume=dict(
             status="creating",
             id=volume_id,
@@ -133,20 +132,22 @@ class VolumeController(object):
         )))
 
     def _delete_volume(self, volume_id):
-        params = utils.get_base_template_params(get_volume_type(volume_id))
+        backend, params = get_backend_params(get_volume_type(volume_id))
         params['volume_id'] = volume_id
-        utils.ansible_operation('delete_volume', params)
+        playcaller.factory(backend, 'delete_volume', params).run()
         cherrypy.response.status = 202  # Accepted
 
     def _initialize_connection(self, volume_id, connector):
-        params = utils.get_base_template_params(get_volume_type(volume_id))
-        params['volume_id'] = volume_id
-        ret = utils.ansible_operation('initialize_connection', params)
-        info = ret['connection_info']
-        return json.dumps(dict(connection_info=info))
+        backend, params = get_backend_params(get_volume_type(volume_id))
+        params.update(dict(
+            volume_id=volume_id,
+            connector=connector
+        ))
+        ret = playcaller.factory(backend, 'delete_volume', params).run()
+        return json.dumps(dict(connection_info=ret['connection_info']))
 
 
-class SnapshotController(object):
+class SnapshotController(QuarryController):
 
     @cherrypy.tools.json_in()
     def collection(self, api_ver, tenant_id):
@@ -166,23 +167,19 @@ class SnapshotController(object):
 
     def _get_snapshot(self, snapshot_id):
         # XXX: How can we look up the backend type?
-        cherrypy.response.headers['Content-Type'] = 'application/json'
-        params = utils.get_base_template_params(get_volume_type(None))
+        backend, params = get_backend_params(get_volume_type(None))
         params.update(dict(
             snapshot_id=snapshot_id,
             volume_id=None,  # Will be looked up
-            check_mode='yes',
         ))
 
-        ret = utils.ansible_operation('create_snapshot', params)
-        # XXX: We need a better way to do this...
+        ret = playcaller.factory(backend, 'get_snapshot', params).run()
         state = ret["state"]
         if state == 'present':
-            volume_id = utils.search_playbook_output(ret, "volume_id")
             return json.dumps(dict(snapshot=dict(
                 status="available",
                 id=snapshot_id,
-                volume_id=volume_id,
+                volume_id=ret['volume_id'],
             )))
         elif state == 'absent':
             raise cherrypy.HTTPError(404, "Snapshot not found")
@@ -192,15 +189,14 @@ class SnapshotController(object):
     def _create_snapshot(self):
         snapshot_id = str(uuid.uuid4())
         volume_id = cherrypy.request.json['snapshot']['volume_id']
-        params = utils.get_base_template_params(get_volume_type(volume_id))
+        backend, params = get_backend_params(get_volume_type(volume_id))
         params.update(dict(
             volume_id=volume_id,
             snapshot_id=snapshot_id
         ))
 
-        utils.ansible_operation('create_snapshot', params)
+        playcaller.factory(backend, 'create_snapshot', params).run()
         cherrypy.response.status = 202  # Accepted
-        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps(dict(snapshot=dict(
             status="creating",
             id=snapshot_id,
@@ -211,7 +207,7 @@ class SnapshotController(object):
         # XXX: How can we look up the backend type?
         params = utils.get_base_template_params(get_volume_type(None))
         params['snapshot_id'] = snapshot_id
-        utils.ansible_operation('delete_snapshot', params)
+        playcaller.factory(backend, 'create_snapshot', params).run()
         cherrypy.response.status = 202  # Accepted
 
 
@@ -220,6 +216,19 @@ def get_volume_type(volume_id):
     if len(types) != 1:
         raise cherrypy.HTTPError(500, "Exactly one backend may be configured")
     return types[0]
+
+
+def get_backend(volume_type):
+    try:
+        return cherrypy.request.app.config['volume_types'][volume_type]
+    except KeyError:
+        raise cherrypy.HTTPError(400, "Unrecognized volume type: %s" %
+                                 volume_type)
+
+
+def get_backend_params(volume_type):
+    backend = get_backend(volume_type)
+    return backend, dict(config=cherrypy.request.app.config[volume_type])
 
 
 dispatcher = None
@@ -254,6 +263,7 @@ dispatcher_conf = {
 
 
 def start():
+    logging.basicConfig(level=logging.DEBUG)
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', help="Location of the config file",
                         required=True)
@@ -266,4 +276,3 @@ def start():
 
 if __name__ == '__main__':
     start()
-

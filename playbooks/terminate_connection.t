@@ -9,10 +9,10 @@
 $config_str
 
   tasks:
-  - name: Create a snapshot
-    quarry_snapshot:
+  - name: Terminate a volume connection
+    quarry_connection:
       backend: $backend
       config: "{{config}}"
-      state: present
-      id: $snapshot_id
+      state: absent
       volume_id: $volume_id
+      initiator: $getVar('initiator', 'null')

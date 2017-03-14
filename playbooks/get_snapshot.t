@@ -16,3 +16,4 @@ $config_str
       state: present
       id: $snapshot_id
       volume_id: $volume_id
+    check_mode: yes

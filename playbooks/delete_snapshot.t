@@ -1,12 +1,12 @@
-- hosts: $ansible_host
-  remote_user: $ansible_user
+- hosts: $config['ansible_host']
+  remote_user: $config['ansible_user']
 
   roles:
   - quarry
 
   vars:
     config:
-$config
+$config_str
 
   tasks:
   - name: Delete a snapshot

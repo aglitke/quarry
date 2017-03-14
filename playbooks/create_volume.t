@@ -1,12 +1,12 @@
-- hosts: $ansible_host
-  remote_user: $ansible_user
+- hosts: $config['ansible_host']
+  remote_user: $config['ansible_user']
 
   roles:
   - quarry
 
   vars:
     config:
-$config
+$config_str
 
   tasks:
   - name: Create a volume
@@ -16,4 +16,3 @@ $config
       state: present
       id: $volume_id
       size: $volume_size
-    check_mode: $getVar('check_mode', 'no')

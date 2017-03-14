@@ -9,10 +9,11 @@
 $config_str
 
   tasks:
-  - name: Create a snapshot
-    quarry_snapshot:
+  - name: Get a volume
+    quarry_volume:
       backend: $backend
       config: "{{config}}"
       state: present
-      id: $snapshot_id
-      volume_id: $volume_id
+      id: $volume_id
+      size: $volume_size
+    check_mode: yes
