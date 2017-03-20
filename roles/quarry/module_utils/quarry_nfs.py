@@ -20,13 +20,13 @@ import logging
 import os
 import subprocess
 
-from ansible.module_utils import quarry_common, quarry_driver
+from ansible.module_utils import quarry_common
 
 
 MOUNT_DIR = '/run/quarry_nfs'
 
 
-class Driver(quarry_driver.Driver):
+class Driver(quarry_common.Driver):
     VERSION = '0.0.1'
 
     def __init__(self, config):

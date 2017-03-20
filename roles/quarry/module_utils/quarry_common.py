@@ -27,6 +27,40 @@ MB = KB * 1024
 GB = MB * 1024
 
 
+class Driver(object):
+    VERSION = '0.0.1'
+
+    def __init__(self, config):
+        pass
+
+    def do_setup(self, context):
+        raise OperationNotSupported()
+
+    def get_volume(self, volume):
+        raise OperationNotSupported()
+
+    def create_volume(self, volume):
+        raise OperationNotSupported()
+
+    def delete_volume(self, volume):
+        raise OperationNotSupported()
+
+    def get_snapshot(self, snapshot):
+        raise OperationNotSupported()
+
+    def create_snapshot(self, snapshot):
+        raise OperationNotSupported()
+
+    def delete_snapshot(self, snapshot):
+        raise OperationNotSupported()
+
+    def initialize_connection(self, volume, connector):
+        raise OperationNotSupported()
+
+    def terminate_connection(self, volume, connector):
+        raise OperationNotSupported()
+
+
 class Volume(object):
     def __init__(self, id, size=None):
         self.id = id

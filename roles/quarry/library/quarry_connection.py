@@ -39,11 +39,8 @@ EXAMPLES = '''
 import logging
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils import quarry_common, quarry_rbd, quarry_nfs
-
-
-BACKENDS = {'rbd': quarry_rbd.Driver,
-            'nfs': quarry_nfs.Driver}
+from ansible.module_utils import quarry_common
+from ansible.module_utils.quarry_backends import backends
 
 
 def _get_connector(mod):
@@ -56,7 +53,7 @@ def _get_connector(mod):
 def main():
     mod = AnsibleModule(
         argument_spec=dict(
-            backend=dict(required=True, choices=BACKENDS.keys()),
+            backend=dict(required=True, choices=backends.keys()),
             config=dict(required=False, type='dict', default={}),
             state=dict(required=False, choices=['present', 'absent'],
                        default='present'),
@@ -71,7 +68,7 @@ def main():
     volume = quarry_common.Volume(mod.params['volume_id'])
     result = dict(changed=True, volume_id=mod.params['volume_id'])
 
-    backend_type = BACKENDS[mod.params['backend']]
+    backend_type = backends[mod.params['backend']]
     driver = backend_type(config)
     driver.do_setup(None)
 

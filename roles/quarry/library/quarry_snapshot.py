@@ -39,15 +39,14 @@ EXAMPLES = '''
 import logging
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils import quarry_common, quarry_rbd
-
-BACKENDS = {'rbd': quarry_rbd.Driver}
+from ansible.module_utils import quarry_common
+from ansible.module_utils.quarry_backends import backends
 
 
 def main():
     mod = AnsibleModule(
         argument_spec=dict(
-            backend=dict(required=True, choices=BACKENDS.keys()),
+            backend=dict(required=True, choices=backends.keys()),
             config=dict(required=False, type='dict', default={}),
             state=dict(required=False, choices=['present', 'absent'],
                        default='present'),
@@ -62,7 +61,7 @@ def main():
     snapshot = quarry_common.Snapshot(mod.params['id'],
                                       volume_id=mod.params['volume_id'])
     result = dict(changed=False, id=snapshot.id)
-    backend_type = BACKENDS[mod.params['backend']]
+    backend_type = backends[mod.params['backend']]
     driver = backend_type(config)
     driver.do_setup(None)
 
