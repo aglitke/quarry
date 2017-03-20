@@ -44,10 +44,10 @@ def keystone_auth():
     return r.headers['X-Subject-Token']
 
 
-def test_volume_create_delete(url, headers):
+def test_volume_create_delete(url, headers, vol_type):
     create_url = "%s/volumes" % url
     payload = json.dumps(dict(volume=dict(
-        name='foo', size=1, volume_type='ceph'
+        name='foo', size=1, volume_type=vol_type
     )))
     print "Creating volume..."
     r = requests.post(create_url, headers=headers, data=payload)
@@ -131,10 +131,10 @@ def main():
     headers = {'Content-Type': 'application/json',
                'X-Auth-Token': auth_token}
     #for url in (QUARRY_URL,): #CINDER_URL, QUARRY_URL:
-    for url in (CINDER_URL,):
-    #for url in (QUARRY_URL,):
+    #for url in (CINDER_URL,):
+    for url in (QUARRY_URL,):
         print "Testing endpoint: %s" % url
-        test_volume_create_delete(url, headers)
+        test_volume_create_delete(url, headers, 'lager_nfs')
         #test_volume_snapshot(url, headers)
 
 

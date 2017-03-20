@@ -28,7 +28,7 @@ from six.moves import urllib
 import subprocess
 import tempfile
 
-from ansible.module_utils import quarry_common
+from ansible.module_utils import quarry_common, quarry_driver
 
 
 CONFIG_DEFAULTS = {
@@ -88,7 +88,7 @@ class VolumeIsBusy(Exception):
         self.volume_name = volume_name
 
 
-class Driver(object):
+class Driver(quarry_driver.Driver):
     VERSION = '1.2.0'
 
     SYSCONFDIR = '/etc/ceph/'

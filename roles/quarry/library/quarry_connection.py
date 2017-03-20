@@ -39,10 +39,11 @@ EXAMPLES = '''
 import logging
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils import quarry_common, quarry_rbd
+from ansible.module_utils import quarry_common, quarry_rbd, quarry_nfs
 
 
-BACKENDS = {'rbd': quarry_rbd.Driver}
+BACKENDS = {'rbd': quarry_rbd.Driver,
+            'nfs': quarry_nfs.Driver}
 
 
 def _get_connector(mod):

@@ -11,7 +11,7 @@ import utils
 
 
 def factory(backend, operation, params):
-    if backend in ('rbd',):
+    if backend in ('rbd', 'nfs'):
         return PlayCaller(backend, operation, params)
     raise utils.ConfigurationError('Unsupported backend %s' % backend)
 

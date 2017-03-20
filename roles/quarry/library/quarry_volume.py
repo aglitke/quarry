@@ -39,10 +39,11 @@ EXAMPLES = '''
 import logging
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils import quarry_common, quarry_rbd
+from ansible.module_utils import quarry_common, quarry_rbd, quarry_nfs
 
 
-BACKENDS = {'rbd': quarry_rbd.Driver}
+BACKENDS = {'rbd': quarry_rbd.Driver,
+            'nfs': quarry_nfs.Driver}
 
 
 def main():
@@ -61,7 +62,7 @@ def main():
     logging.basicConfig(filename=file, level=logging.DEBUG)
 
     volume = quarry_common.Volume(mod.params['id'], mod.params.get('size'))
-    result = dict(changed=False, id=volume.id)
+    result = dict(changed=False, id=volume.id, size=None)
 
     backend_type = BACKENDS[mod.params['backend']]
     driver = backend_type(config)

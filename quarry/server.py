@@ -82,6 +82,9 @@ class VolumeController(QuarryController):
         if 'os-initialize_connection' in req:
             connector = req['os-initialize_connection']['connector']
             return self._initialize_connection(volume_id, connector)
+        elif 'os-terminate_connection' in req:
+            connector = req['os-terminate_connection']['connector']
+            return self._terminate_connection(volume_id, connector)
         raise cherrypy.HTTPError(400, "Action Not implemented")
 
     def _get_volume(self, volume_id):
@@ -116,11 +119,19 @@ class VolumeController(QuarryController):
         volume_id = str(uuid.uuid4())
         volume_type = cherrypy.request.json['volume']['volume_type']
         volume_size = cherrypy.request.json['volume']['size']
+        source_volid = cherrypy.request.json['volume'].get('source_volid')
+        snapshot_id = cherrypy.request.json['volume'].get('snapshot_id')
         backend, params = get_backend_params(volume_type)
         params.update(dict(
             volume_id=volume_id,
             volume_size=volume_size,
+            source_volid=source_volid,
+            snapshot_id=snapshot_id,
         ))
+
+        if source_volid and snapshot_id:
+            raise cherrypy.HTTPError(401, "Only one of source_volid and "
+                                     "snapshot_id is allowed")
 
         playcaller.factory(backend, 'create_volume', params).run()
         cherrypy.response.status = 202  # Accepted
@@ -129,6 +140,8 @@ class VolumeController(QuarryController):
             id=volume_id,
             size=params['volume_size'],
             volume_type=volume_type,
+            source_volid=source_volid,
+            snapshot_id=snapshot_id,
         )))
 
     def _delete_volume(self, volume_id):
@@ -143,8 +156,16 @@ class VolumeController(QuarryController):
             volume_id=volume_id,
             connector=connector
         ))
-        ret = playcaller.factory(backend, 'delete_volume', params).run()
+        ret = playcaller.factory(backend, 'initialize_connection', params).run()
         return json.dumps(dict(connection_info=ret['connection_info']))
+
+    def _terminate_connection(self, volume_id, connector):
+        backend, params = get_backend_params(get_volume_type(volume_id))
+        params.update(dict(
+            volume_id=volume_id,
+            connector=connector
+        ))
+        playcaller.factory(backend, 'terminate_connection', params).run()
 
 
 class SnapshotController(QuarryController):
@@ -178,7 +199,7 @@ class SnapshotController(QuarryController):
         if state == 'present':
             return json.dumps(dict(snapshot=dict(
                 status="available",
-                id=snapshot_id,
+                id=ret['id'],
                 volume_id=ret['volume_id'],
             )))
         elif state == 'absent':
@@ -205,7 +226,7 @@ class SnapshotController(QuarryController):
 
     def _delete_snapshot(self, snapshot_id):
         # XXX: How can we look up the backend type?
-        params = utils.get_base_template_params(get_volume_type(None))
+        backend, params = get_backend_params(get_volume_type(None))
         params['snapshot_id'] = snapshot_id
         playcaller.factory(backend, 'create_snapshot', params).run()
         cherrypy.response.status = 202  # Accepted

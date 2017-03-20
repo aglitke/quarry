@@ -49,6 +49,10 @@ class Snapshot(object):
             self.volume_id = volume_name.split('volume-')[1]
 
 
+class OperationNotSupported(Exception):
+    pass
+
+
 class ImageUnacceptable(Exception):
     pass
 
