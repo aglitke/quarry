@@ -123,7 +123,8 @@ class Driver(quarry_common.Driver):
     def get_volume(self, volume):
         try:
             with RBDVolumeProxy(self, volume.name, read_only=True) as proxy:
-                return quarry_common.Volume(volume.id, size=proxy.size())
+                size = proxy.size() / quarry_common.GB
+                return quarry_common.Volume(volume.id, size=size)
         except rbd.ImageNotFound:
             return None
 
