@@ -90,10 +90,10 @@ def test_volume_create_delete(url, headers, vol_type):
     raw_input("done. (Press enter)")
 
 
-def test_volume_snapshot(url, headers):
+def test_volume_snapshot(url, headers, vol_type):
     create_volume_url = "%s/volumes" % url
     payload = json.dumps(dict(volume=dict(
-        name='foo', size=1, volume_type='ceph'
+        name='foo', size=1, volume_type=vol_type
     )))
     print "Creating volume..."
     r = requests.post(create_volume_url, headers=headers, data=payload)
@@ -138,8 +138,8 @@ def main():
     #for url in (CINDER_URL,):
     for url in (QUARRY_URL,):
         print "Testing endpoint: %s" % url
-        test_volume_create_delete(url, headers, 'xtremio')
-        #test_volume_snapshot(url, headers)
+        #test_volume_create_delete(url, headers, 'xtremio')
+        test_volume_snapshot(url, headers, 'xtremio')
 
 
 if __name__ == '__main__':

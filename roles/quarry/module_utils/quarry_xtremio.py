@@ -405,7 +405,12 @@ class Driver(quarry_common.Driver):
             return None
 
     def get_snapshot(self, snapshot):
-        raise OperationNotSupported()
+        try:
+            snap_obj = self.client.req('snapshots', name=snapshot.id)['content']
+            vol_id = snap_obj['created-from-volume']
+            return quarry_common.Snapshot(snapshot.id, volume_id=vol_id)
+        except NotFound:
+            return None
 
     def _obj_from_result(self, res):
         typ, idx = res['links'][0]['href'].split('/')[-2:]

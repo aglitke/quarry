@@ -230,7 +230,7 @@ class SnapshotController(QuarryController):
         # XXX: How can we look up the backend type?
         backend, params = get_backend_params(get_volume_type(None))
         params['snapshot_id'] = snapshot_id
-        playcaller.factory(backend, 'create_snapshot', params).run()
+        playcaller.factory(backend, 'delete_snapshot', params).run()
         cherrypy.response.status = 202  # Accepted
 
 
