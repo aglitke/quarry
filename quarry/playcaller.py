@@ -10,8 +10,9 @@ import config
 import utils
 
 
+
 def factory(backend, operation, params):
-    if backend in ('rbd', 'nfs'):
+    if backend in ('nfs', 'rbd', 'xtremio'):
         return PlayCaller(backend, operation, params)
     raise utils.ConfigurationError('Unsupported backend %s' % backend)
 

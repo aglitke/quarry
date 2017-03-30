@@ -64,7 +64,9 @@ def test_volume_create_delete(url, headers, vol_type):
     print "Connecting volume"
     action_url = "%s/volumes/%s/action" % (url, volume_id)
     payload = json.dumps({'os-initialize_connection': dict(
-        connector=dict()
+        connector=dict(
+            initiator="iqn.1994-05.com.redhat:adam-test"
+        )
     )})
     r = requests.post(action_url, headers=headers, data=payload)
     print r.text
@@ -72,7 +74,9 @@ def test_volume_create_delete(url, headers, vol_type):
 
     print "Disconnecting volume"
     payload = json.dumps({'os-terminate_connection': dict(
-        connector=dict()
+        connector=dict(
+            initiator="iqn.1994-05.com.redhat:adam-test"
+        )
     )})
     r = requests.post(action_url, headers=headers, data=payload)
     print r.text
@@ -134,7 +138,7 @@ def main():
     #for url in (CINDER_URL,):
     for url in (QUARRY_URL,):
         print "Testing endpoint: %s" % url
-        test_volume_create_delete(url, headers, 'ceph')
+        test_volume_create_delete(url, headers, 'xtremio')
         #test_volume_snapshot(url, headers)
 
 

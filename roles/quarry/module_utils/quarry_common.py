@@ -34,7 +34,7 @@ class Driver(object):
         pass
 
     def do_setup(self, context):
-        raise OperationNotSupported()
+        pass
 
     def get_volume(self, volume):
         raise OperationNotSupported()
@@ -61,7 +61,21 @@ class Driver(object):
         raise OperationNotSupported()
 
 
-class Volume(object):
+class DictIface(object):
+    def __getitem__(self, item):
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError
+
+    def get(self, item, default=None):
+        try:
+            self.__getitem__(item)
+        except KeyError:
+            return default
+
+
+class Volume(DictIface):
     def __init__(self, id, size=None):
         self.id = id
         self.name = 'volume-%s' % id
@@ -70,7 +84,7 @@ class Volume(object):
         self.encryption_key_id = None
 
 
-class Snapshot(object):
+class Snapshot(DictIface):
 
     def __init__(self, id, volume_id=None, volume_name=None):
         self.id = id
@@ -92,6 +106,10 @@ class ImageUnacceptable(Exception):
 
 
 class InvalidConfigurationValue(Exception):
+    pass
+
+
+class InvalidInput(Exception):
     pass
 
 
@@ -127,6 +145,10 @@ class VolumeIsBusy(Exception):
     pass
 
 
+class VolumeNotFound(Exception):
+    pass
+
+
 class ReplicationStatus(object):
     ERROR = 'error'
     ENABLED = 'enabled'
@@ -138,6 +160,19 @@ class ReplicationStatus(object):
 
     ALL = (ERROR, ENABLED, DISABLED, NOT_CAPABLE, FAILOVER_ERROR, FAILING_OVER,
            FAILED_OVER)
+
+
+class ConsistencyGroupStatus(object):
+    ERROR = 'error'
+    AVAILABLE = 'available'
+    CREATING = 'creating'
+    DELETING = 'deleting'
+    DELETED = 'deleted'
+    UPDATING = 'updating'
+    ERROR_DELETING = 'error_deleting'
+
+    ALL = (ERROR, AVAILABLE, CREATING, DELETING, DELETED,
+           UPDATING, ERROR_DELETING)
 
 
 def convert_str(text):

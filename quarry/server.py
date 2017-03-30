@@ -81,10 +81,12 @@ class VolumeController(QuarryController):
         req = cherrypy.request.json
         if 'os-initialize_connection' in req:
             connector = req['os-initialize_connection']['connector']
-            return self._initialize_connection(volume_id, connector)
+            initiator = connector.get('initiator')
+            return self._initialize_connection(volume_id, initiator)
         elif 'os-terminate_connection' in req:
             connector = req['os-terminate_connection']['connector']
-            return self._terminate_connection(volume_id, connector)
+            initiator = connector.get('initiator')
+            return self._terminate_connection(volume_id, initiator)
         raise cherrypy.HTTPError(400, "Action Not implemented")
 
     def _get_volume(self, volume_id):
@@ -150,20 +152,20 @@ class VolumeController(QuarryController):
         playcaller.factory(backend, 'delete_volume', params).run()
         cherrypy.response.status = 202  # Accepted
 
-    def _initialize_connection(self, volume_id, connector):
+    def _initialize_connection(self, volume_id, initiator):
         backend, params = get_backend_params(get_volume_type(volume_id))
         params.update(dict(
             volume_id=volume_id,
-            connector=connector
+            initiator=initiator
         ))
         ret = playcaller.factory(backend, 'initialize_connection', params).run()
         return json.dumps(dict(connection_info=ret['connection_info']))
 
-    def _terminate_connection(self, volume_id, connector):
+    def _terminate_connection(self, volume_id, initiator):
         backend, params = get_backend_params(get_volume_type(volume_id))
         params.update(dict(
             volume_id=volume_id,
-            connector=connector
+            initiator=initiator
         ))
         playcaller.factory(backend, 'terminate_connection', params).run()
 
