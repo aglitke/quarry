@@ -1,3 +1,12 @@
+#
+#  Copyright 2017 Red Hat, Inc. and/or its affiliates.
+#
+# Licensed to you under the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.  See the files README and
+# LICENSE_GPL_v2 which accompany this distribution.
+#
+
 import argparse
 import cherrypy
 import json
@@ -8,20 +17,16 @@ import playcaller
 import utils
 
 
-class QuarryController(object):
-    def __init__(self):
-        cherrypy.response.headers['Content-Type'] = 'application/json'
-
-
-class V2Controller(QuarryController):
+class V2Controller(object):
 
     def index(self):
         return json.dumps({})
 
 
-class VolumeTypesController(QuarryController):
+class VolumeTypesController(object):
 
     def index(self, api_ver, tenant_id):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         types = cherrypy.request.app.config['volume_types'].keys()
         result = dict(volume_types=[])
         for i, vol_type in enumerate(types, start=1):
@@ -34,9 +39,10 @@ class VolumeTypesController(QuarryController):
         return json.dumps(result)
 
 
-class LimitsController(QuarryController):
+class LimitsController(object):
 
     def index(self, api_ver, tenant_id):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps({
             "limits": {
                 "rate": [],
@@ -56,7 +62,7 @@ class LimitsController(QuarryController):
         })
 
 
-class VolumeController(QuarryController):
+class VolumeController(object):
 
     @cherrypy.tools.json_in()
     def collection(self, api_ver, tenant_id):
@@ -76,6 +82,7 @@ class VolumeController(QuarryController):
 
     @cherrypy.tools.json_in()
     def action(self, api_ver, tenant_id, volume_id):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         if cherrypy.request.method.upper() != 'POST':
             raise cherrypy.HTTPError(400, "POST method expected")
         req = cherrypy.request.json
@@ -90,6 +97,7 @@ class VolumeController(QuarryController):
         raise cherrypy.HTTPError(400, "Action Not implemented")
 
     def _get_volume(self, volume_id):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         backend, params = get_backend_params(get_volume_type(volume_id))
         params.update(dict(
             volume_id=volume_id,
@@ -118,6 +126,7 @@ class VolumeController(QuarryController):
             raise cherrypy.HTTPError(500, "Invalid state: %s" % state)
 
     def _create_volume(self):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         volume_id = str(uuid.uuid4())
         volume_type = cherrypy.request.json['volume']['volume_type']
         volume_size = cherrypy.request.json['volume']['size']
@@ -147,12 +156,14 @@ class VolumeController(QuarryController):
         )))
 
     def _delete_volume(self, volume_id):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         backend, params = get_backend_params(get_volume_type(volume_id))
         params['volume_id'] = volume_id
         playcaller.factory(backend, 'delete_volume', params).run()
         cherrypy.response.status = 202  # Accepted
 
     def _initialize_connection(self, volume_id, initiator):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         backend, params = get_backend_params(get_volume_type(volume_id))
         params.update(dict(
             volume_id=volume_id,
@@ -162,6 +173,7 @@ class VolumeController(QuarryController):
         return json.dumps(dict(connection_info=ret['connection_info']))
 
     def _terminate_connection(self, volume_id, initiator):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         backend, params = get_backend_params(get_volume_type(volume_id))
         params.update(dict(
             volume_id=volume_id,
@@ -170,7 +182,7 @@ class VolumeController(QuarryController):
         playcaller.factory(backend, 'terminate_connection', params).run()
 
 
-class SnapshotController(QuarryController):
+class SnapshotController(object):
 
     @cherrypy.tools.json_in()
     def collection(self, api_ver, tenant_id):
@@ -189,6 +201,7 @@ class SnapshotController(QuarryController):
             raise cherrypy.HTTPError(400, "Method not supported")
 
     def _get_snapshot(self, snapshot_id):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         # XXX: How can we look up the backend type?
         backend, params = get_backend_params(get_volume_type(None))
         params.update(dict(
@@ -210,6 +223,7 @@ class SnapshotController(QuarryController):
             raise cherrypy.HTTPError(500, "Invalid state: %s" % state)
 
     def _create_snapshot(self):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         snapshot_id = str(uuid.uuid4())
         volume_id = cherrypy.request.json['snapshot']['volume_id']
         backend, params = get_backend_params(get_volume_type(volume_id))
@@ -227,6 +241,7 @@ class SnapshotController(QuarryController):
         )))
 
     def _delete_snapshot(self, snapshot_id):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
         # XXX: How can we look up the backend type?
         backend, params = get_backend_params(get_volume_type(None))
         params['snapshot_id'] = snapshot_id

@@ -1,3 +1,12 @@
+#
+#  Copyright 2017 Red Hat, Inc. and/or its affiliates.
+#
+# Licensed to you under the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.  See the files README and
+# LICENSE_GPL_v2 which accompany this distribution.
+#
+
 from Cheetah.Template import Template
 from contextlib import contextmanager
 import copy
@@ -8,7 +17,6 @@ import subprocess
 
 import config
 import utils
-
 
 
 def factory(backend, operation, params):
