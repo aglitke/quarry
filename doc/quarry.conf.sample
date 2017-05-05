@@ -1,0 +1,15 @@
+# Example quarry.conf file
+[global]
+# Enable cherrypy reload when python files change
+engine.autoreload.on: True
+
+# IP address on which to listen for incoming connections
+server.socket_host: '0.0.0.0'
+
+# Listen port
+server.socket_port: 8776
+
+# The volume types to export via the API.  Each volume type should have a
+# corresponding <type>.yml backend configuration file stored in
+# /etc/quarry/config or the path specified by the QUARRY_CONFIG_PATH env var.
+volume_types = ['ceph', 'xtremio']

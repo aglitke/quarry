@@ -3,4 +3,4 @@
 . /home/alitke/src/ansible/hacking/env-setup
 export QUARRY_CONFIG_DIR=/home/alitke/src/quarry/config
 
-python quarry/server.py -c quarry.conf
+python quarry/server.py -c quarry.conf.local
