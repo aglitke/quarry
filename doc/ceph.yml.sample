@@ -1,0 +1,31 @@
+---
+#
+# Sample backend configuration for the rbd backend
+#
+backend: rbd
+
+# The target host.  Should already be configured to access the ceph cluster.
+ansible_host: cephmon1.example.com
+
+# Execute commands on the target host as a certain user
+ansible_user: ceph_admin
+
+backend_config:
+  # Enable low level logging on the target host.  Comment out to disable.
+  log: /tmp/quarry.log
+
+  # The RADOS client name for accessing rbd volumes. Only set when using
+  # cephx authentication.
+  rbd_user: admin
+
+  # Location of the ceph configuration file on the target host.
+  rbd_ceph_conf: /etc/ceph/ceph.conf
+
+  # The name of the ceph cluster.
+  rbd_cluster_name: ceph
+
+  # The RADOS pool where rbd volumes are stored.
+  rbd_pool: volumes
+
+  # The libvirt uuid of the secret for the rbd_user volumes
+  rbd_secret_uuid: 595a9eb5-4a19-4a6d-ab5a-aff230fbf6dd

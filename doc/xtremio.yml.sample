@@ -1,0 +1,33 @@
+---
+#
+# Sample backend configuration for the xtremio backend
+#
+backend: xtremio
+
+# Host to use for making REST calls to the xtremio management application
+ansible_host: anyhost.example.com
+
+# Execute ansible on the target host as a specific user
+ansible_user: ansible
+
+backend_config:
+  # IP address of the xtremio management server.
+  san_ip: 10.1.2.3
+
+  # xtremio user name.
+  san_login: user
+
+  # xtremio password
+  san_password: pass
+
+  # Enable low level logging on the target host.  Comment out to disable.
+  log: /tmp/quarry.log
+
+  # XMS cluster id in multi-cluster environment
+  xtremio_cluster_name: cluster
+
+  # Enable SSL certificate verification
+  driver_ssl_cert_verify: false
+
+  # The SSL certificate path
+  # driver_ssl_cert_path: /dev/null
