@@ -1,0 +1,11 @@
+#
+# Checking that required variables are set
+#
+- name: Checking that required variables are set
+  fail: msg="Variable {{ item }} is not defined"
+  when: not {{ item }}
+  with_items:
+    - ansible_host
+    - ansible_user
+    - backend
+    - backend_config

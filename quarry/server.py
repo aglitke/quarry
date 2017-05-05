@@ -18,7 +18,7 @@ import playcaller
 import utils
 
 
-DiscoveredResource = namedtuple('DiscoveredVolume', 'type,backend,params,info')
+DiscoveredResource = namedtuple('DiscoveredVolume', 'type,info')
 
 
 class V2Controller(object):
@@ -124,19 +124,18 @@ class VolumeController(object):
         volume_size = cherrypy.request.json['volume']['size']
         source_volid = cherrypy.request.json['volume'].get('source_volid')
         snapshot_id = cherrypy.request.json['volume'].get('snapshot_id')
-        backend, params = get_backend_params(volume_type)
-        params.update(dict(
+        params = dict(
             volume_id=volume_id,
             volume_size=volume_size,
             source_volid=source_volid,
             snapshot_id=snapshot_id,
-        ))
+        )
 
         if source_volid and snapshot_id:
             raise cherrypy.HTTPError(401, "Only one of source_volid and "
                                      "snapshot_id is allowed")
 
-        playcaller.factory(backend, 'create_volume', params).run()
+        playcaller.PlayCaller(volume_type, 'create_volume', params).run()
         cherrypy.response.status = 202  # Accepted
         return json.dumps(dict(volume=dict(
             status="creating",
@@ -150,30 +149,29 @@ class VolumeController(object):
     def _delete_volume(self, volume_id):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         res = find_volume(volume_id)
-        res.params['volume_id'] = volume_id
-        playcaller.factory(res.backend, 'delete_volume', res.params).run()
+        params = dict(volume_id=volume_id)
+        playcaller.PlayCaller(res.type, 'delete_volume', params).run()
         cherrypy.response.status = 202  # Accepted
 
     def _initialize_connection(self, volume_id, initiator):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         res = find_volume(volume_id)
-        res.params.update(dict(
+        params = dict(
             volume_id=volume_id,
             initiator=initiator
-        ))
-        ret = playcaller.factory(
-            res.backend, 'initialize_connection', res.params).run()
+        )
+        ret = playcaller.PlayCaller(
+            res.type, 'initialize_connection', params).run()
         return json.dumps(dict(connection_info=ret['connection_info']))
 
     def _terminate_connection(self, volume_id, initiator):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         res = find_volume(volume_id)
-        res.params.update(dict(
+        params = dict(
             volume_id=volume_id,
             initiator=initiator
-        ))
-        playcaller.factory(
-            res.backend, 'terminate_connection', res.params).run()
+        )
+        playcaller.PlayCaller(res.type, 'terminate_connection', params).run()
 
 
 class SnapshotController(object):
@@ -208,12 +206,12 @@ class SnapshotController(object):
         snapshot_id = str(uuid.uuid4())
         volume_id = cherrypy.request.json['snapshot']['volume_id']
         res = find_volume(volume_id)
-        res.params.update(dict(
+        params = dict(
             volume_id=volume_id,
             snapshot_id=snapshot_id
-        ))
+        )
 
-        playcaller.factory(res.backend, 'create_snapshot', res.params).run()
+        playcaller.PlayCaller(res.type, 'create_snapshot', params).run()
         cherrypy.response.status = 202  # Accepted
         return json.dumps(dict(snapshot=dict(
             status="creating",
@@ -224,54 +222,39 @@ class SnapshotController(object):
     def _delete_snapshot(self, snapshot_id):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         res = find_snapshot(snapshot_id)
-        res.params['snapshot_id'] = snapshot_id
-        playcaller.factory(res.backend, 'delete_snapshot', res.params).run()
+        params = dict(snapshot_id=snapshot_id)
+        playcaller.PlayCaller(res.type, 'delete_snapshot', params).run()
         cherrypy.response.status = 202  # Accepted
 
 
-def get_backend(volume_type):
-    try:
-        return cherrypy.request.app.config['volume_types'][volume_type]
-    except KeyError:
-        raise cherrypy.HTTPError(400, "Unrecognized volume type: %s" %
-                                 volume_type)
-
-
-def get_backend_params(volume_type):
-    backend = get_backend(volume_type)
-    return backend, dict(config=cherrypy.request.app.config[volume_type])
-
-
 def find_volume(volume_id):
-    volume_types = cherrypy.request.app.config['volume_types'].keys()
+    volume_types = cherrypy.request.app.config['global']['volume_types']
     for volume_type in volume_types:
-        backend, params = get_backend_params(volume_type)
-        params.update(dict(
+        params = dict(
             volume_id=volume_id,
             volume_size=0,
-        ))
+        )
         cherrypy.log("Searching backend %s for volume %s" % (volume_type,
                                                              volume_id))
-        ret = playcaller.factory(backend, 'get_volume', params).run()
+        ret = playcaller.PlayCaller(volume_type, 'get_volume', params).run()
         if ret['state'] == 'present':
-            return DiscoveredResource(volume_type, backend, params, ret)
+            return DiscoveredResource(volume_type, ret)
     else:
         raise cherrypy.HTTPError(404, "Volume not found")
 
 
 def find_snapshot(snapshot_id):
-    volume_types = cherrypy.request.app.config['volume_types'].keys()
+    volume_types = cherrypy.request.app.config['global']['volume_types']
     for volume_type in volume_types:
-        backend, params = get_backend_params(volume_type)
-        params.update(dict(
+        params = dict(
             snapshot_id=snapshot_id,
             volume_id=None,  # Will be looked up
-        ))
+        )
         cherrypy.log("Searching backend %s for snapshot %s" % (volume_type,
                                                                snapshot_id))
-        ret = playcaller.factory(backend, 'get_snapshot', params).run()
+        ret = playcaller.PlayCaller(volume_type, 'get_snapshot', params).run()
         if ret["state"] == 'present':
-            return DiscoveredResource(volume_type, backend, params, ret)
+            return DiscoveredResource(volume_type, ret)
     else:
         raise cherrypy.HTTPError(404, "Snapshot not found")
 

@@ -1,18 +1,17 @@
-- hosts: $config['ansible_host']
-  remote_user: $config['ansible_user']
+- hosts: "{{ ansible_host }}"
+  remote_user: "{{ ansible_user }}"
 
   roles:
   - quarry
 
-  vars:
-    config:
-$config_str
+  vars_files:
+  - "{{ backend_vars_file }}"
 
   tasks:
   - name: Create a snapshot
     quarry_snapshot:
-      backend: $backend
-      config: "{{config}}"
+      backend: "{{ backend }}"
+      config: "{{ backend_config }}"
       state: present
       id: $snapshot_id
       volume_id: $volume_id

@@ -19,29 +19,19 @@ import config
 import utils
 
 
-def factory(backend, operation, params):
-    if backend in ('nfs', 'rbd', 'xtremio'):
-        return PlayCaller(backend, operation, params)
-    raise utils.ConfigurationError('Unsupported backend %s' % backend)
-
-
 class PlayCaller(object):
     log = logging.getLogger('PlayCaller')
 
-    def __init__(self, backend, operation, params):
-        self.backend = backend
+    def __init__(self, volume_type, operation, params):
+        self.volume_type = volume_type
         self.operation = operation
         self.params = params
 
     def run(self):
-        try:
-            host = self.params['config']['ansible_host']
-        except KeyError:
-            raise utils.ConfigurationError("Missing parameter 'ansible_host'")
-
         with self._playbook() as playbook:
-            cmd = ['ansible-playbook', '-i', '%s,' % host, playbook]
+            cmd = ['ansible-playbook', playbook]
             env = copy.copy(os.environ)
+            env['QUARRY_VOLUME_TYPE'] = self.volume_type
             env['ANSIBLE_ROLES_PATH'] = config.roles_path
             env['ANSIBLE_STDOUT_CALLBACK'] = 'json'
             self.log.debug("Running ansible: %s", cmd)
@@ -56,16 +46,15 @@ class PlayCaller(object):
             # This makes some assumptions:
             # 1. The ansible command is running only one play
             # 2. We always return the result of the last task
-            return json.loads(out)['plays'][0]['tasks'][-1]['hosts'][host]
+            result = json.loads(out)['plays'][0]['tasks'][-1]['hosts']
+            hosts = result.keys()
+            if len(hosts) != 1:
+                raise RuntimeError("Expecting exactly one host in report, got "
+                                   "%s" % hosts)
+            return result[hosts[0]]
 
     def _template_name(self):
         return '%s.t' % self.operation
-
-    def _template_params(self):
-        ret = dict(backend=self.backend,
-                   config_str=self._build_config_str())
-        ret.update(self.params)
-        return ret
 
     @contextmanager
     def _playbook(self):
@@ -73,17 +62,9 @@ class PlayCaller(object):
                                      self._template_name())
         with open(template_file) as f:
             template = f.read()
-        data = str(Template(template,
-                            searchList=[self._template_params()]))
-        self.log.debug("Playbook content:\n%s", data)
-
-        with utils.temp_file() as path:
-            with open(path, 'w') as f:
-                f.write(data)
-            yield path
-
-    def _build_config_str(self):
-        cfg_str = ""
-        for kv_pair in self.params['config'].items():
-            cfg_str += "      %s: %s\n" % kv_pair
-        return cfg_str
+            data = str(Template(template, searchList=[self.params]))
+            self.log.debug("Playbook content:\n%s", data)
+            with utils.temp_file() as path:
+                with open(path, 'w') as f:
+                    f.write(data)
+                yield path

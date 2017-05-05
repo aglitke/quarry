@@ -1,0 +1,5 @@
+---
+# Find the location of backend config based on provided environment variables
+configs_dir: "{{ lookup('env', 'QUARRY_CONFIG_DIR')|default('/etc/quarry/config', true) }}"
+volume_type: "{{ lookup('env', 'QUARRY_VOLUME_TYPE')|default('undefined', true) }}"
+backend_vars_file: "{{ configs_dir }}/{{ volume_type }}.yml"
