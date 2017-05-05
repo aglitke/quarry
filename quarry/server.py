@@ -21,6 +21,10 @@ import utils
 DiscoveredResource = namedtuple('DiscoveredVolume', 'type,info')
 
 
+def volume_types():
+    return cherrypy.request.app.config['global']['volume_types']
+
+
 class V2Controller(object):
 
     def index(self):
@@ -31,9 +35,8 @@ class VolumeTypesController(object):
 
     def index(self, api_ver, tenant_id):
         cherrypy.response.headers['Content-Type'] = 'application/json'
-        types = cherrypy.request.app.config['volume_types'].keys()
         result = dict(volume_types=[])
-        for i, vol_type in enumerate(types, start=1):
+        for i, vol_type in enumerate(volume_types(), start=1):
             entry = dict(
                 id="00000000-0000-0000-0000-%012d" % i,
                 name=vol_type,
@@ -124,6 +127,10 @@ class VolumeController(object):
         volume_size = cherrypy.request.json['volume']['size']
         source_volid = cherrypy.request.json['volume'].get('source_volid')
         snapshot_id = cherrypy.request.json['volume'].get('snapshot_id')
+
+        if volume_type not in volume_types():
+            raise cherrypy.HTTPError(400, "Unsupported volume type")
+
         params = dict(
             volume_id=volume_id,
             volume_size=volume_size,
@@ -228,8 +235,7 @@ class SnapshotController(object):
 
 
 def find_volume(volume_id):
-    volume_types = cherrypy.request.app.config['global']['volume_types']
-    for volume_type in volume_types:
+    for volume_type in volume_types():
         params = dict(
             volume_id=volume_id,
             volume_size=0,
@@ -244,8 +250,7 @@ def find_volume(volume_id):
 
 
 def find_snapshot(snapshot_id):
-    volume_types = cherrypy.request.app.config['global']['volume_types']
-    for volume_type in volume_types:
+    for volume_type in volume_types():
         params = dict(
             snapshot_id=snapshot_id,
             volume_id=None,  # Will be looked up
