@@ -26,9 +26,9 @@ from lxml import etree
 import six
 from six.moves import urllib
 
-import quarry_netapp_zapi_errors as ZapiError
-from quarry_netapp_exceptions import NetAppLibException
-from quarry_netapp_i18n import _
+from ansible.module_utils import quarry_netapp_zapi_errors as ZapiError
+from ansible.module_utils.quarry_netapp_exceptions import NetAppLibException
+from ansible.module_utils.quarry_netapp_i18n import _
 
 LOG = logging.getLogger(__name__)
 

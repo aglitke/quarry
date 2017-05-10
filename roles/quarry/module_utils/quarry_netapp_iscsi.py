@@ -20,8 +20,8 @@ import re
 import logging
 from logging.handlers import RotatingFileHandler
 
-import quarry_netapp_zapi as zapi
-import quarry_netapp_zapi_errors as zapi_errors
+from ansible.module_utils import quarry_netapp_zapi as zapi
+from ansible.module_utils import quarry_netapp_zapi_errors as zapi_errors
 
 
 #rotating_file_handler = RotatingFileHandler(

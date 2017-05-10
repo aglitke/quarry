@@ -1,0 +1,29 @@
+---
+backend: netapp
+
+# Host to use for making API calls to the NetApp Data Ontap server
+ansible_host: localhost
+
+# Execute ansible on the target host as a specific user
+ansible_user: user
+
+backend_config:
+  # Hostname for the NetApp Data Ontap server
+  hostname: netapp-vserver.example.com
+  # NetApp username
+  username: netappuser
+  # NetApp password
+  password: passw0rd
+  # NetApp vserver name
+  vserver: vserver0
+  # Pool (NetApp Volume) to use when creating/removing volumes
+  pool: quarry
+  # NetApp API versions
+  api_minor_version: 1
+  api_major_version: 21
+  # Server port of the NetApp Data Ontap server
+  port: 80
+  # Server type (TODO: Update with other options)
+  server_type: 'FILER'
+  # Server transport (TODO: Update with other options)
+  transport_type: 'HTTP'

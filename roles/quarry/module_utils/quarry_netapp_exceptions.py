@@ -15,7 +15,7 @@
 import logging
 import six
 
-from quarry_netapp_i18n import _, _LE
+from ansible.module_utils.quarry_netapp_i18n import _, _LE
 
 LOG = logging.getLogger(__name__)
 

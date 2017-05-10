@@ -48,26 +48,26 @@ def test_volume_create_delete(url, headers, vol_type):
     volume_id = _create_volume(url, headers, vol_type)
     _get_volume(url, headers, volume_id)
 
-    print("Connecting volume")
-    action_url = "%s/volumes/%s/action" % (url, volume_id)
-    payload = json.dumps({'os-initialize_connection': dict(
-        connector=dict(
-            initiator="iqn.1994-05.com.redhat:adam-test"
-        )
-    )})
-    r = requests.post(action_url, headers=headers, data=payload)
-    print(r.text)
-    raw_input("done. (Press enter)")
-
-    print("Disconnecting volume")
-    payload = json.dumps({'os-terminate_connection': dict(
-        connector=dict(
-            initiator="iqn.1994-05.com.redhat:adam-test"
-        )
-    )})
-    r = requests.post(action_url, headers=headers, data=payload)
-    print(r.text)
-    raw_input("done. (Press enter)")
+    # print("Connecting volume")
+    # action_url = "%s/volumes/%s/action" % (url, volume_id)
+    # payload = json.dumps({'os-initialize_connection': dict(
+    #     connector=dict(
+    #         initiator="iqn.1994-05.com.redhat:adam-test"
+    #     )
+    # )})
+    # r = requests.post(action_url, headers=headers, data=payload)
+    # print(r.text)
+    # raw_input("done. (Press enter)")
+    #
+    # print("Disconnecting volume")
+    # payload = json.dumps({'os-terminate_connection': dict(
+    #     connector=dict(
+    #         initiator="iqn.1994-05.com.redhat:adam-test"
+    #     )
+    # )})
+    # r = requests.post(action_url, headers=headers, data=payload)
+    # print(r.text)
+    # raw_input("done. (Press enter)")
 
     _delete_volume(url, headers, volume_id)
     raw_input("done. (Press enter)")
@@ -174,16 +174,17 @@ def _delete_snapshot(url, headers, snapshot_id):
 
 
 def main():
-    auth_token = keystone_auth()
+    #auth_token = keystone_auth()
+    auth_token = 'auth'
     headers = {'Content-Type': 'application/json',
                'X-Auth-Token': auth_token}
     #for url in (QUARRY_URL,): #CINDER_URL, QUARRY_URL:
     #for url in (CINDER_URL,):
     for url in (QUARRY_URL,):
         print("Testing endpoint: %s" % url)
-        #test_volume_create_delete(url, headers, 'xtremio')
+        test_volume_create_delete(url, headers, 'netapp')
         #test_volume_snapshot(url, headers, 'xtremio')
-        test_multi_backend_search(url, headers, ('ceph', 'xtremio'))
+        #test_multi_backend_search(url, headers, ('ceph', 'xtremio'))
 
 
 if __name__ == '__main__':

@@ -7,10 +7,15 @@
 # LICENSE_GPL_v2 which accompany this distribution.
 #
 
-from ansible.module_utils import quarry_rbd, quarry_nfs, quarry_xtremio
+from ansible.module_utils import \
+    quarry_netapp, \
+    quarry_nfs, \
+    quarry_rbd, \
+    quarry_xtremio
 
 backends = dict(
     nfs=quarry_nfs.Driver,
     rbd=quarry_rbd.Driver,
     xtremio=quarry_xtremio.ISCSIDriver,
+    netapp=quarry_netapp.Driver,
 )
